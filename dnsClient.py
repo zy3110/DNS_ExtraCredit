@@ -82,7 +82,7 @@ def dns_query(type, name, server):
         
     qname_parts = name.split('.') # How can we easily split the string?
     qname_encoded_parts = [struct.pack('B', len(part)) + part.encode('utf-8') for part in qname_parts] # Make sure it's encoded as a sequence of the right character encoding type (lowercase)
-    qname_encoded = b''.join(qname_encoded_parts) + b'\x??' #enter the closing byte value to signify the end of the domain string (two digits)
+    qname_encoded = b''.join(qname_encoded_parts) + b'\x00' #enter the closing byte value to signify the end of the domain string (two digits)
 
     # Encode the QTYPE and QCLASS
 
@@ -101,6 +101,7 @@ def dns_query(type, name, server):
 
     # Send the query to the server, remember we must always include our header alongside the question!
     message = header + question
+    print(message)
     sent = sock.sendto(message, server_address)
 
     # Receive the response from the server
@@ -108,10 +109,16 @@ def dns_query(type, name, server):
     
         # A larger buffer size would allow more data to be received at once, while a smaller buffer size would limit the amount of data that can be received at once. 
         # It is a good idea to choose a buffer size that is large enough to accommodate the largest expected DNS response, but not so large that it wastes memory.
-    
+    print(data)
     # Parse the response header
     response_header = data[:12] # What is the size of the DNS response header in bytes? 
     ID, FLAGS, QDCOUNT, ANCOUNT, NSCOUNT, ARCOUNT = struct.unpack('!HHHHHH', response_header) # We are unpacking the binary data of the response header into individual values representing the fields of the DNS header.
+    print(ID)
+    print(FLAGS)
+    print(QDCOUNT)
+    print(ANCOUNT)
+    print(NSCOUNT)
+    print(ARCOUNT)
     
     # Parse the response question section (same as query)
     response_question = data[12:12+len(question)] # The data variable starts immediately after the header section, so what is it's index? Note the two '??' '??' will be the same value as we start at a specific index and then go for the entire length of the binary data received. 
@@ -142,9 +149,9 @@ def dns_query(type, name, server):
         name = '.'.join(name_parts)
 
         # Parse the type, class, TTL, and RDLENGTH
-        type, cls, ttl, rdlength = struct.unpack('!HHIH', response_answer[offset:offset+8]) # What is the offset value in bytes? Remember 'H' represent 2 bytes, and 'I' represents one byte, we declared '!HHIH'. 
+        type, cls, ttl, rdlength = struct.unpack('!HHIH', response_answer[offset:offset+10]) # What is the offset value in bytes? Remember 'H' represent 2 bytes, and 'I' represents one byte, we declared '!HHIH'. 
         
-        offset += 8 # Same value as just calculated
+        offset += 10 # Same value as just calculated
 
         # Parse the RDATA
         rdata = response_answer[offset:offset+rdlength]
@@ -189,3 +196,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     result = dns_query(args.type, args.name, args.server)
+    print(result)
